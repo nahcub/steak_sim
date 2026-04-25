@@ -3,7 +3,7 @@
 
 // Maillard reaction (surface browning/crust formation)
 // Activates only above 140°C — requires dry surface conditions
-const A_M  = 1e8;    // pre-exponential factor (empirical)
+const A_M  = 2.5e5;    // pre-exponential factor (empirical)
 const Ea_M = 70000;  // activation energy, J/mol (~70 kJ/mol)
 
 // Protein denaturation (doneness, color change inside)

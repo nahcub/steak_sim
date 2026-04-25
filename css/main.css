@@ -141,11 +141,57 @@ html, body {
 /* ── LEFT PANEL ───────────────────────────────────── */
 .panel-left {
   display: flex;
+  flex-direction: row;
+  gap: 20px;
+  padding: 16px 0px 16px 20px;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.panel-left-col {
+  display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px 20px;
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-graph-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 260px;
+  flex-shrink: 0;
+  margin-right: -1px; /* Align perfectly with border */
+}
+
+.graph-wrap {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-right: none; /* Connect to right panel border */
+  background: #ffffff;
+  position: relative;
+  min-height: 120px;
+  aspect-ratio: 1 / 1;
+  align-self: flex-end;
+  width: 100%;
+}
+
+.graph-title {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-weight: bold;
+  font-size: 11px;
+  color: var(--text-primary);
+  z-index: 10;
+  pointer-events: none;
+}
+
+#pan-graph-canvas, #core-graph-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .panel-tag {
@@ -328,7 +374,7 @@ html, body {
 .gauge-label {
   font-size: 11px;
   color: var(--text-secondary);
-  width: 32px;
+  width: 48px;
   flex-shrink: 0;
 }
 
@@ -461,7 +507,8 @@ html, body {
   position: fixed;
   bottom: calc(var(--footer-h) + 12px);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, 0);
+  transition: opacity 0.3s, transform 0.3s;
   background: #0f1117;
   color: #ffffff;
   font-family: var(--font-mono);
@@ -470,13 +517,40 @@ html, body {
   padding: 8px 20px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s;
   white-space: nowrap;
   z-index: 200;
 }
 .toast.visible { opacity: 1; }
 
-/* ── SCROLLBAR ────────────────────────────────────── */
+/* ── SCROLLBAR ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); }
+
+/* ── MODAL ───────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 8px;
+  width: 440px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  text-align: center;
+}

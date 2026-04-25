@@ -1,9 +1,13 @@
 // UI rendering — canvas drawing + DOM stat updates
 
-// ── Pan image ────────────────────────────────────────────
+// ── Pan/Tray images ─────────────────────────────────────────
 const _panImg = new Image();
 _panImg.onload = () => { if (typeof renderFrame === 'function') renderFrame(); };
-_panImg.src = 'design/flyingpan.png';
+_panImg.src = 'design/justpan.png';
+
+const _trayImg = new Image();
+_trayImg.onload = () => { if (typeof renderFrame === 'function') renderFrame(); };
+_trayImg.src = 'design/tray.png';
 
 // Steak bounding box as fraction of flyingpan.png dimensions
 const _S = { l: 0.245, t: 0.36, r: 0.622, b: 0.598 };
@@ -14,7 +18,7 @@ function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 // Scientific heatmap colormap (blue → cyan → green → yellow → red)
 // Used for the cross-section heatmap canvas only
 function tempToHeatmapRGB(t) {
-  const n = Math.max(0, Math.min(1, (t - 4) / (240 - 4)));
+  const n = Math.max(0, Math.min(1, (t - 4) / (150 - 4)));
   let r, g, b;
   if (n < 0.25) {
     const f = n / 0.25;
@@ -95,8 +99,8 @@ function drawHeatmap(nodes, denaturation) {
     const cbCtx = cb.getContext('2d');
     const cbH = cb.height;
     for (let y = 0; y < cbH; y++) {
-      // y=0 → hot (240°C), y=cbH → cold (4°C)
-      const t = lerp(240, 4, y / cbH);
+      // y=0 → hot (150°C), y=cbH → cold (4°C)
+      const t = lerp(150, 4, y / cbH);
       const [r, g, b] = tempToHeatmapRGB(t);
       cbCtx.fillStyle = `rgb(${r},${g},${b})`;
       cbCtx.fillRect(0, y, cb.width, 1);
@@ -105,7 +109,7 @@ function drawHeatmap(nodes, denaturation) {
 }
 
 // ── Pan canvas ────────────────────────────────────────────
-function drawPan(nodes, denaturation, crustFront, crustBack, revealed) {
+function drawPan(nodes, denaturation, crustFront, crustBack, flipProgress = 1, isResting = false, maxCoreTemp = 22) {
   const canvas = document.getElementById('pan-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.offsetWidth || 500;
@@ -117,9 +121,30 @@ function drawPan(nodes, denaturation, crustFront, crustBack, revealed) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  // Draw pan image (stretched to canvas — steak fractions stay aligned)
-  if (_panImg.complete && _panImg.naturalWidth > 0) {
-    ctx.drawImage(_panImg, 0, 0, W, H);
+  ctx.save();
+  // ト레이일 때와 프라이팬일 때 위치를 각각 다르게 설정할 수 있습니다.
+  // 예: 팬은 아래로 60픽셀, 트레이는 30픽셀 (숫자를 줄이면 위로 올라갑니다)
+  const offsetY = isResting ? 60 : 60;
+  ctx.translate(W / 2, H / 2 + offsetY);
+  ctx.scale(0.5, 0.5);
+  ctx.translate(-W / 2, -H / 2);
+
+  // Pan bounce calculation
+  let panBounceY = 0;
+  if (flipProgress < 1) {
+    if (flipProgress < 0.2) {
+      // Jump off bounce
+      panBounceY = Math.sin((flipProgress / 0.2) * Math.PI) * 4;
+    } else if (flipProgress > 0.8) {
+      // Landing bounce
+      panBounceY = Math.sin(((flipProgress - 0.8) / 0.2) * Math.PI) * 6;
+    }
+  }
+
+  // Draw pan or tray image
+  const bgImg = isResting ? _trayImg : _panImg;
+  if (bgImg.complete && bgImg.naturalWidth > 0) {
+    ctx.drawImage(bgImg, 0, panBounceY, W, H);
   }
 
   // Steak rect in canvas coords
@@ -128,16 +153,36 @@ function drawPan(nodes, denaturation, crustFront, crustBack, revealed) {
   const sw = W * (_S.r - _S.l);
   const sh = H * (_S.b - _S.t);
 
-  if (revealed) {
-    _drawSteakRevealed(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack);
-  } else {
-    _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack);
+  // Steak animation offset & rotation
+  let steakYOffset = panBounceY; // Follows pan when resting, separates when jumping
+  let steakRotation = 0;
+
+  if (flipProgress < 1) {
+    // Parabola: up and down
+    steakYOffset += -350 * Math.sin(flipProgress * Math.PI);
+    // Rotation: starts at 180deg and ends at 0
+    steakRotation = (1 - flipProgress) * Math.PI;
   }
+
+  ctx.save();
+  // Translate to center of steak
+  const cx = sx + sw / 2;
+  const cy = sy + sh / 2;
+
+  ctx.translate(cx, cy + steakYOffset);
+  ctx.rotate(steakRotation);
+  ctx.translate(-cx, -cy);
+
+  _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack, maxCoreTemp);
+
+  ctx.restore();
+
+  ctx.restore(); // Restore global scale
 }
 
-function _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack) {
+function _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack, maxCoreTemp) {
   const coreIdx = Math.floor(N_NODES / 2);
-  const [mr, mg, mb] = tempToRGB(nodes[coreIdx], denaturation[coreIdx]);
+  const [mr, mg, mb] = tempToRGB(maxCoreTemp, denaturation[coreIdx]);
   const [cfr, cfg, cfb] = crustRGB(crustFront);
   const [cbr, cbg, cbb] = crustRGB(crustBack);
 
@@ -149,10 +194,10 @@ function _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront
   const airR = Math.round(lerp(mr, cbr, crustBack));
   const airG = Math.round(lerp(mg, cbg, crustBack));
   const airB = Math.round(lerp(mb, cbb, crustBack));
-  grad.addColorStop(0,   `rgb(${panR},${panG},${panB})`);
+  grad.addColorStop(0, `rgb(${panR},${panG},${panB})`);
   grad.addColorStop(0.3, `rgb(${mr},${mg},${mb})`);
   grad.addColorStop(0.7, `rgb(${mr},${mg},${mb})`);
-  grad.addColorStop(1,   `rgb(${airR},${airG},${airB})`);
+  grad.addColorStop(1, `rgb(${airR},${airG},${airB})`);
 
   ctx.fillStyle = grad;
   ctx.fillRect(sx, sy, sw, sh);
@@ -165,50 +210,103 @@ function _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront
   ctx.fillRect(sx, sy, sw, sh * 0.2);
 }
 
-function _drawSteakRevealed(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack) {
-  // Cross-section: vertical bands from pan-side (left) to air-side (right)
-  const bandW = sw / N_NODES;
-  nodes.forEach((t, i) => {
-    const [r, g, b] = tempToRGB(t, denaturation[i]);
-    let fr = r, fg = g, fb = b;
-    if (i === 0) {
-      const [cr, cg, cb] = crustRGB(crustFront);
-      fr = Math.round(lerp(r, cr, crustFront));
-      fg = Math.round(lerp(g, cg, crustFront));
-      fb = Math.round(lerp(b, cb, crustFront));
-    } else if (i === N_NODES - 1) {
-      const [cr, cg, cb] = crustRGB(crustBack);
-      fr = Math.round(lerp(r, cr, crustBack));
-      fg = Math.round(lerp(g, cg, crustBack));
-      fb = Math.round(lerp(b, cb, crustBack));
-    }
-    ctx.fillStyle = `rgb(${fr},${fg},${fb})`;
-    ctx.fillRect(sx + i * bandW, sy, bandW + 1, sh);
-  });
+// ── Temperature Graph ─────────────────────────────────────
+function drawGraph(history) {
+  if (history.length === 0) return;
+  const maxT = Math.max(10, history[history.length - 1].t);
 
-  // Doneness label
-  const donenessInfo = getDoneness(nodes[Math.floor(N_NODES / 2)]);
-  ctx.font = `600 ${Math.max(11, Math.round(sh * 0.28))}px Inter, sans-serif`;
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.textAlign = 'center';
-  ctx.fillText(donenessInfo.label, sx + sw / 2, sy + sh / 2 + 5);
+  // Helper to draw a single line graph
+  function renderSingleGraph(canvasId, valueKey, color, fixedMaxTemp) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.offsetWidth || 300;
+    const H = canvas.offsetHeight || 120;
+    canvas.width = W;
+    canvas.height = H;
+
+    ctx.clearRect(0, 0, W, H);
+
+    function mapX(t) { return (t / maxT) * W; }
+    function mapY(temp) { return (H - 15) - (temp / fixedMaxTemp) * (H - 15); }
+
+    // Grid lines & Y-axis labels
+    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    
+    ctx.beginPath();
+    for (let y = 0; y <= fixedMaxTemp; y += 50) {
+      const yPos = mapY(y);
+      ctx.moveTo(0, yPos);
+      ctx.lineTo(W, yPos);
+      
+      if (y > 0) {
+        ctx.fillText(y + '°C', 2, yPos - 2);
+      }
+    }
+    ctx.stroke();
+
+    // X-axis Time Labels
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.font = '10px monospace';
+    ctx.textBaseline = 'bottom';
+    const numLabels = 4;
+    for (let i = 0; i <= numLabels; i++) {
+      const tVal = (maxT / numLabels) * i;
+      let xPos = mapX(tVal);
+      if (i === 0) { ctx.textAlign = 'left'; xPos = 2; }
+      else if (i === numLabels) { ctx.textAlign = 'right'; xPos = W - 2; }
+      else { ctx.textAlign = 'center'; }
+      
+      const m = Math.floor(tVal / 60);
+      const s = Math.floor(tVal % 60);
+      const timeStr = m + ':' + String(s).padStart(2, '0');
+      ctx.fillText(timeStr, xPos, H - 2);
+    }
+
+    // Data Line
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    history.forEach((pt, i) => {
+      const x = mapX(pt.t);
+      const y = mapY(pt[valueKey]);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  // Pan graph (max 300°C)
+  renderSingleGraph('pan-graph-canvas', 'pan', '#E74C3C', 300);
+  
+  // Core graph (max 120°C for better resolution since it rarely exceeds 100°C)
+  renderSingleGraph('core-graph-canvas', 'core', '#3498DB', 120);
 }
 
 // ── DOM stats ─────────────────────────────────────────────
-function updateStats({ coreTemp, crustFront, crustBack, doneness, panTemp, flipCount, simSecs }) {
+function updateStats({ coreTemp, crustFront, crustBack, doneness, panTemp, flipCount, simSecs, waterLoss }) {
   document.getElementById('core-temp').textContent = coreTemp.toFixed(1) + '°C';
   document.getElementById('core-temp-header').textContent = coreTemp.toFixed(1) + '°C';
   document.getElementById('doneness-label').textContent = doneness.label;
+  document.getElementById('doneness-label').style.color = doneness.color;
   document.getElementById('doneness-header').textContent = doneness.label.toUpperCase();
 
-  const cf = (crustFront * 100).toFixed(0) + '%';
-  const cb = (crustBack * 100).toFixed(0) + '%';
-  document.getElementById('crust-front-bar').style.width = cf;
-  document.getElementById('crust-back-bar').style.width = cb;
-  document.getElementById('crust-front-val').textContent = cf;
-  document.getElementById('crust-back-val').textContent = cb;
+  const fPct = Math.round(crustFront * 100);
+  const bPct = Math.round(crustBack * 100);
+  document.getElementById('crust-front-bar').style.width = fPct + '%';
+  document.getElementById('crust-front-val').textContent = fPct + '%';
+  document.getElementById('crust-back-bar').style.width = bPct + '%';
+  document.getElementById('crust-back-val').textContent = bPct + '%';
 
-  document.getElementById('pan-temp-display').textContent = panTemp.toFixed(0) + '°C';
+  const wPct = Math.min(100, waterLoss);
+  document.getElementById('water-fill').style.width = wPct.toFixed(1) + '%';
+  document.getElementById('water-val').textContent = wPct.toFixed(1) + '%';
+
+  document.getElementById('pan-temp-display').textContent = Math.round(panTemp) + '°C';
   document.getElementById('flip-count').textContent = flipCount + '회';
   document.getElementById('sim-time').textContent = simSecs.toFixed(0) + 's';
 }

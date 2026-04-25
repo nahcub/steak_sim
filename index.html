@@ -1,24 +1,22 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>STEAK SIM</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400&family=Inter:wght@400;500&display=swap"
-    rel="stylesheet"
-  />
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400&family=Inter:wght@400;500&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="css/main.css" />
 </head>
+
 <body>
 
   <!-- ── HEADER ─────────────────────────────────────────── -->
   <header class="app-header">
     <div class="header-left">
-      <span class="logo">STEAK SIM</span>
-      <span class="divider">|</span>
-      <span class="header-sub" id="cut-display">등심</span>
+      <div class="logo">STEAK SIM</div>
     </div>
     <div class="header-right">
       <span class="status-chip" id="doneness-header">RAW</span>
@@ -31,13 +29,7 @@
   <!-- ── API KEY DRAWER ────────────────────────────────── -->
   <div class="api-drawer" id="api-drawer">
     <label class="drawer-label">GEMINI API KEY</label>
-    <input
-      type="password"
-      id="api-key-input"
-      class="api-input"
-      placeholder="AIza..."
-      autocomplete="off"
-    />
+    <input type="password" id="api-key-input" class="api-input" placeholder="AIza..." autocomplete="off" />
     <button class="btn-primary btn-sm" id="api-key-save">SAVE</button>
     <span class="api-status" id="api-status"></span>
   </div>
@@ -45,18 +37,11 @@
   <!-- ── MAIN ──────────────────────────────────────────── -->
   <main class="app-main">
 
-    <!-- LEFT: Pan scene -->
+    <!-- LEFT: Pan scene & Graph -->
     <section class="panel-left">
-      <div class="panel-tag">🔥 스테이크 하우스</div>
+      <div class="panel-left-col">
 
-      <!-- Gemini image upload -->
-      <div class="gemini-row">
-        <input type="file" id="steak-image" accept="image/*" />
-        <button class="btn-ghost btn-sm" id="upload-btn">📷 사진 분석</button>
-        <span class="text-muted" id="gemini-status"></span>
-      </div>
-
-      <!-- Controls above pan -->
+      <!-- Controls grid -->
       <div class="controls-grid">
         <label class="ctrl-label">
           <span>부위</span>
@@ -91,6 +76,19 @@
       <div class="pan-wrap">
         <canvas id="pan-canvas"></canvas>
       </div>
+      </div>
+
+      <div class="panel-graph-col">
+        <div class="graph-wrap">
+          <div class="graph-title">프라이팬 온도</div>
+          <canvas id="pan-graph-canvas"></canvas>
+        </div>
+        
+        <div class="graph-wrap">
+          <div class="graph-title">심부 온도</div>
+          <canvas id="core-graph-canvas"></canvas>
+        </div>
+      </div>
     </section>
 
     <!-- RIGHT: Data panels -->
@@ -100,7 +98,6 @@
       <div class="data-card heatmap-card">
         <div class="card-header">
           <div class="card-title">단면 온도 분포</div>
-          <button class="btn-ghost btn-sm" id="reveal-btn" disabled>✂ 단면 공개</button>
         </div>
         <div class="heatmap-wrap">
           <div class="heatmap-axis">
@@ -109,7 +106,7 @@
             <span class="heatmap-axis-label">팬면</span>
           </div>
           <div class="heatmap-colorbar">
-            <span class="colorbar-label">240°C</span>
+            <span class="colorbar-label">150°C</span>
             <canvas id="colorbar-canvas" width="16" height="160"></canvas>
             <span class="colorbar-label">4°C</span>
           </div>
@@ -123,7 +120,7 @@
 
       <!-- Crust gauges -->
       <div class="data-card">
-        <div class="card-title">크러스트</div>
+        <div class="card-title">크러스트 & 수분</div>
         <div class="gauge-row">
           <span class="gauge-label">앞면</span>
           <div class="gauge-track">
@@ -137,6 +134,13 @@
             <div class="gauge-fill" id="crust-back-bar" style="width:0%"></div>
           </div>
           <span class="gauge-val" id="crust-back-val">0%</span>
+        </div>
+        <div class="gauge-row">
+          <span class="gauge-label" style="color: #3498DB;">수분 손실</span>
+          <div class="gauge-track">
+            <div class="gauge-fill" id="water-fill" style="width:0%; background: #3498DB;"></div>
+          </div>
+          <span class="gauge-val" id="water-val" style="color: #3498DB;">0%</span>
         </div>
       </div>
 
@@ -154,23 +158,36 @@
   <!-- ── FOOTER ─────────────────────────────────────────── -->
   <footer class="app-footer">
     <div class="footer-fire">
-      <button class="fire-btn" data-power="150" data-label="약불">약불</button>
-      <button class="fire-btn active" data-power="400" data-label="중불">중불</button>
-      <button class="fire-btn" data-power="700" data-label="강불">강불</button>
-      <button class="fire-btn" data-power="1000" data-label="최강">최강</button>
-      <span class="fire-sep"></span>
       <span class="text-muted">팬</span>
-      <span id="pan-temp-display" class="mono">220°C</span>
+      <span id="pan-temp-display" class="mono" style="margin-right: 8px;">220°C</span>
+      <button class="fire-btn" data-power="100" data-label="약불">약불</button>
+      <button class="fire-btn active" data-power="150" data-label="중불">중불</button>
+      <button class="fire-btn" data-power="250" data-label="강불">강불</button>
+      <button class="fire-btn" data-power="400" data-label="최강">최강</button>
     </div>
-    <div class="footer-actions">
+    <div class="footer-actions" style="display: flex; width: 100%;">
       <button class="btn-primary" id="start-btn">▶ START</button>
       <button class="btn-ghost" id="flip-btn" disabled>↩ 뒤집기</button>
       <button class="btn-ghost" id="rest-btn" disabled>☁ 레스팅</button>
+      <button class="btn-ghost" id="speed-btn">속도: 3x</button>
+
+      <div style="flex: 1;"></div>
+      
+      <button id="serve-btn" class="btn-primary" style="height: 40px; width: 320px; font-size: 16px; font-weight: bold; background: #000000; color: #ffffff; border: none; letter-spacing: 4px; border-radius: 4px;">SERVE</button>
     </div>
   </footer>
 
+  <!-- ── RESULT MODAL ──────────────────────────────────────── -->
+  <div id="result-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h2 style="margin-top: 0;">스테이크 완성! 🎉</h2>
+      <div id="result-summary" style="margin: 20px 0; line-height: 1.6; font-size: 15px;"></div>
+      <button id="close-modal-btn" class="btn-primary" style="width: 100%; height: 48px; font-size: 16px;">다시 굽기</button>
+    </div>
+  </div>
+
   <!-- ── TOAST ─────────────────────────────────────────── -->
-  <div class="toast" id="toast"></div>
+  <div id="toast" class="toast">알림</div>
 
   <!-- ── SCRIPTS ───────────────────────────────────────── -->
   <script src="js/constants.js"></script>
@@ -180,4 +197,5 @@
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>
+
 </html>
