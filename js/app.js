@@ -186,21 +186,6 @@ document.querySelectorAll('.fire-btn').forEach(btn => {
   });
 });
 
-// ── API Key drawer ────────────────────────────────────────
-document.getElementById('settings-toggle').addEventListener('click', () => {
-  document.getElementById('api-drawer').classList.toggle('open');
-});
-
-document.getElementById('api-key-save').addEventListener('click', () => {
-  const key = document.getElementById('api-key-input').value.trim();
-  if (key) {
-    setGeminiApiKey(key);
-    document.getElementById('api-status').textContent = '✓ 저장됨';
-    document.getElementById('api-drawer').classList.remove('open');
-    showToast('Gemini API 키 저장 완료');
-  }
-});
-
 // ── Main button listeners ─────────────────────────────────
 document.getElementById('add-meat-btn').addEventListener('click', () => {
   isMeatAdded = true;
@@ -213,18 +198,17 @@ document.getElementById('rest-btn').addEventListener('click', doRest);
 document.getElementById('speed-btn').addEventListener('click', toggleSpeed);
 
 // ── Serve & Result Modal ──────────────────────────────────
-document.getElementById('serve-btn').addEventListener('click', () => {
-  if (isRunning) startStop(); // Pause simulation
-  
-  const m = Math.floor(simSecs / 60);
-  const s = Math.floor(simSecs % 60);
-  const timeStr = m > 0 ? `${m}분 ${s}초` : `${s}초`;
-  
+document.getElementById('serve-btn').addEventListener('click', async () => {
+  if (isRunning) startStop();
+
   const doneness = getDoneness(maxCoreTemp);
   const front = Math.round(crustFront * 100);
   const back = Math.round(crustBack * 100);
   const crustScore = (front + back) / 2;
-  
+  const m = Math.floor(simSecs / 60);
+  const s = Math.floor(simSecs % 60);
+  const timeStr = m > 0 ? `${m}분 ${s}초` : `${s}초`;
+
   let crustText = "";
   if (crustScore > 80) crustText = "완벽한 시어링(Perfect Searing) 겉바속촉!";
   else if (crustScore > 50) crustText = "적당히 바삭한 크러스트";
@@ -243,10 +227,32 @@ document.getElementById('serve-btn').addEventListener('click', () => {
       <li style="margin-bottom: 8px;"><strong>수분 손실률:</strong> ${waterLoss.toFixed(1)}%</li>
       <li style="margin-bottom: 8px;"><strong>육즙 상태:</strong> ${waterText}</li>
     </ul>
+    <div id="gemini-review" style="background: #1f2228; color: #fff; padding: 16px 20px; border-radius: 6px; font-size: 14px; line-height: 1.7; margin-bottom: 8px;">
+      ✦ 셰프 리뷰 생성 중...
+    </div>
   `;
-  
+
   document.getElementById('result-summary').innerHTML = summaryHTML;
   document.getElementById('result-modal').classList.add('open');
+
+  const cut = document.getElementById('cut-select').value;
+  try {
+    const review = await generateSteakReview({
+      cut,
+      doneness: doneness.label,
+      coreTemp: maxCoreTemp,
+      crustFront: front,
+      crustBack: back,
+      waterLoss,
+      flipCount,
+      simSecs,
+    });
+    const reviewEl = document.getElementById('gemini-review');
+    if (reviewEl) reviewEl.textContent = review ? `✦ ${review}` : '✦ 리뷰를 가져올 수 없습니다.';
+  } catch (e) {
+    const reviewEl = document.getElementById('gemini-review');
+    if (reviewEl) reviewEl.textContent = '✦ 리뷰 생성 실패: ' + e.message;
+  }
 });
 
 document.getElementById('close-modal-btn').addEventListener('click', () => {
@@ -280,8 +286,3 @@ ro.observe(document.getElementById('core-graph-canvas'));
 initSim();
 rafId = requestAnimationFrame(loop);
 
-// Restore API key if previously saved in gemini.js default
-if (getGeminiApiKey()) {
-  document.getElementById('api-key-input').value = getGeminiApiKey();
-  document.getElementById('api-status').textContent = '✓ 로드됨';
-}
