@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STEAK SIM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400&family=Inter:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+
+  <!-- ── HEADER ─────────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="header-left">
+      <span class="logo">STEAK SIM</span>
+      <span class="divider">|</span>
+      <span class="header-sub" id="cut-display">등심</span>
+    </div>
+    <div class="header-right">
+      <span class="status-chip" id="doneness-header">RAW</span>
+      <span class="status-chip" id="core-temp-header">22°C</span>
+      <span class="status-chip mono" id="timer-display">0:00</span>
+      <button class="btn-ghost btn-sm" id="settings-toggle">API KEY</button>
+    </div>
+  </header>
+
+  <!-- ── API KEY DRAWER ────────────────────────────────── -->
+  <div class="api-drawer" id="api-drawer">
+    <label class="drawer-label">GEMINI API KEY</label>
+    <input
+      type="password"
+      id="api-key-input"
+      class="api-input"
+      placeholder="AIza..."
+      autocomplete="off"
+    />
+    <button class="btn-primary btn-sm" id="api-key-save">SAVE</button>
+    <span class="api-status" id="api-status"></span>
+  </div>
+
+  <!-- ── MAIN ──────────────────────────────────────────── -->
+  <main class="app-main">
+
+    <!-- LEFT: Pan scene -->
+    <section class="panel-left">
+      <div class="panel-tag">🔥 스테이크 하우스</div>
+
+      <!-- Gemini image upload -->
+      <div class="gemini-row">
+        <input type="file" id="steak-image" accept="image/*" />
+        <button class="btn-ghost btn-sm" id="upload-btn">📷 사진 분석</button>
+        <span class="text-muted" id="gemini-status"></span>
+      </div>
+
+      <!-- Pan canvas -->
+      <div class="pan-wrap">
+        <canvas id="pan-canvas"></canvas>
+      </div>
+
+      <!-- Controls under pan -->
+      <div class="controls-grid">
+        <label class="ctrl-label">
+          <span>부위</span>
+          <select id="cut-select">
+            <option value="tenderloin">안심</option>
+            <option value="strip" selected>등심</option>
+            <option value="ribeye">립아이</option>
+          </select>
+        </label>
+        <label class="ctrl-label">
+          <span>팬</span>
+          <select id="pan-select">
+            <option value="castiron" selected>무쇠팬</option>
+            <option value="stainless">스테인레스</option>
+            <option value="nonstick">코팅팬</option>
+          </select>
+        </label>
+        <label class="ctrl-label">
+          <span>두께(cm)</span>
+          <input type="number" id="thickness-input" value="4" min="1" max="8" step="0.5" />
+        </label>
+        <label class="ctrl-label">
+          <span>초기온도</span>
+          <select id="initial-temp-select">
+            <option value="4">냉장 4°C</option>
+            <option value="22" selected>실온 22°C</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <!-- RIGHT: Data panels -->
+    <section class="panel-right">
+
+      <!-- Heatmap cross-section -->
+      <div class="data-card">
+        <div class="card-title">단면 온도 분포</div>
+        <canvas id="heatmap-canvas"></canvas>
+        <div class="heatmap-labels">
+          <span class="text-muted">팬면</span>
+          <div class="doneness-badge">
+            <span id="doneness-label">Raw</span>
+            <span class="text-muted">–</span>
+            <span id="core-temp">22°C</span>
+          </div>
+          <span class="text-muted">공기면</span>
+        </div>
+      </div>
+
+      <!-- Crust gauges -->
+      <div class="data-card">
+        <div class="card-title">크러스트</div>
+        <div class="gauge-row">
+          <span class="gauge-label">앞면</span>
+          <div class="gauge-track">
+            <div class="gauge-fill" id="crust-front-bar" style="width:0%"></div>
+          </div>
+          <span class="gauge-val" id="crust-front-val">0%</span>
+        </div>
+        <div class="gauge-row">
+          <span class="gauge-label">뒷면</span>
+          <div class="gauge-track">
+            <div class="gauge-fill" id="crust-back-bar" style="width:0%"></div>
+          </div>
+          <span class="gauge-val" id="crust-back-val">0%</span>
+        </div>
+      </div>
+
+      <!-- Fire intensity -->
+      <div class="data-card">
+        <div class="card-title">불 세기</div>
+        <div class="fire-row">
+          <button class="fire-btn" data-power="150" data-label="약불">약불</button>
+          <button class="fire-btn active" data-power="400" data-label="중불">중불</button>
+          <button class="fire-btn" data-power="700" data-label="강불">강불</button>
+          <button class="fire-btn" data-power="1000" data-label="최강">최강</button>
+        </div>
+        <div class="pan-temp-row">
+          <span class="text-muted">팬 온도</span>
+          <span id="pan-temp-display" class="mono">220°C</span>
+        </div>
+      </div>
+
+      <!-- Flip count -->
+      <div class="data-card data-card--row">
+        <span class="text-muted">뒤집기</span>
+        <span class="mono" id="flip-count">0회</span>
+        <span class="text-muted">시뮬 시간</span>
+        <span class="mono" id="sim-time">0s</span>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ── FOOTER ─────────────────────────────────────────── -->
+  <footer class="app-footer">
+    <button class="btn-primary" id="start-btn">▶ START</button>
+    <button class="btn-ghost" id="flip-btn" disabled>↩ 뒤집기</button>
+    <button class="btn-ghost" id="rest-btn" disabled>☁ 레스팅</button>
+    <button class="btn-ghost" id="reveal-btn" disabled>✂ 단면 공개</button>
+  </footer>
+
+  <!-- ── TOAST ─────────────────────────────────────────── -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ── SCRIPTS ───────────────────────────────────────── -->
+  <script src="js/constants.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/reactions.js"></script>
+  <script src="js/gemini.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
