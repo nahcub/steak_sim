@@ -35,7 +35,7 @@ const DONENESS = [
 
 // Convection coefficient for top surface exposed to air (natural convection)
 const H_CONV = 15;    // W/m²·K
-const T_AIR  = 200;    // °C
+const T_AIR  = 22;    // °C
 
 // Initial pan temperature when simulation starts
-const PAN_INITIAL_TEMP = 22; // °C
+const PAN_INITIAL_TEMP = 200; // °C
