@@ -14,7 +14,7 @@ let burnerPower = 400; // W
 
 let isRunning = false;
 let isResting = false;
-let simSpeed = 3;
+let simSpeed = 10;
 let flipCount = 0;
 let simSecs = 0;      // total simulated seconds
 let accumulator = 0;     // leftover real time not yet consumed by FDM steps (seconds)
@@ -227,32 +227,10 @@ document.getElementById('serve-btn').addEventListener('click', async () => {
       <li style="margin-bottom: 8px;"><strong>수분 손실률:</strong> ${waterLoss.toFixed(1)}%</li>
       <li style="margin-bottom: 8px;"><strong>육즙 상태:</strong> ${waterText}</li>
     </ul>
-    <div id="gemini-review" style="background: #1f2228; color: #fff; padding: 16px 20px; border-radius: 6px; font-size: 14px; line-height: 1.7; margin-bottom: 8px;">
-      ✦ 셰프 리뷰 생성 중...
-    </div>
   `;
 
   document.getElementById('result-summary').innerHTML = summaryHTML;
   document.getElementById('result-modal').classList.add('open');
-
-  const cut = document.getElementById('cut-select').value;
-  try {
-    const review = await generateSteakReview({
-      cut,
-      doneness: doneness.label,
-      coreTemp: maxCoreTemp,
-      crustFront: front,
-      crustBack: back,
-      waterLoss,
-      flipCount,
-      simSecs,
-    });
-    const reviewEl = document.getElementById('gemini-review');
-    if (reviewEl) reviewEl.textContent = review ? `✦ ${review}` : '✦ 리뷰를 가져올 수 없습니다.';
-  } catch (e) {
-    const reviewEl = document.getElementById('gemini-review');
-    if (reviewEl) reviewEl.textContent = '✦ 리뷰 생성 실패: ' + e.message;
-  }
 });
 
 document.getElementById('close-modal-btn').addEventListener('click', () => {

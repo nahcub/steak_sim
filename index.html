@@ -191,14 +191,47 @@
       text-transform: uppercase;
       letter-spacing: 1.4px;
       font-weight: bold;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .nav-link {
+      font-family: var(--mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-sec);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 640px) {
+      .nav-links .nav-link {
+        display: none;
+      }
     }
   </style>
 </head>
 
 <body>
   <nav class="nav">
-    <div class="nav-brand">The Steak Scientist</div>
-    <a href="#simulator" class="btn btn-ghost" style="padding: 10px 20px;">Try Simulator</a>
+    <a href="#" class="nav-brand">The Steak Scientist</a>
+    <div class="nav-links">
+      <a href="#problem" class="nav-link">Problem</a>
+      <a href="#solution" class="nav-link">Solution</a>
+      <a href="#physics" class="nav-link">Physics</a>
+      <a href="#simulator" class="btn btn-ghost" style="padding: 10px 20px;">Try Simulator</a>
+    </div>
   </nav>
 
   <!-- 1. Title & Hook -->
@@ -243,11 +276,11 @@
     <div class="physics-grid" style="margin-top: 48px;">
       <div class="physics-card">
         <h3>01. 초기 조건 설정</h3>
-        <p>고기의 부위(안심, 등심, 립아이)와 두께, 초기 온도를 설정합니다. 사용하는 팬의 종류(무쇠, 스텐, 코팅)에 따라 열용량(Thermal Mass)이 달라집니다.</p>
+        <p>고기의 부위와 두께를 설정합니다. 사용하는 팬의 종류(무쇠, 스텐, 코팅)에 따라 열용량이 달라집니다.</p>
       </div>
       <div class="physics-card">
         <h3>02. 조리 및 화력 조절</h3>
-        <p>START를 누르면 팬이 가열됩니다. 실시간 그래프와 히트맵을 통해 고기 내부로 파고드는 열에너지를 관찰하고 하단의 불 세기를 조절하세요.</p>
+        <p>START를 누르면 팬이 가열됩니다. 팬이 적당히 달궈지면 고기를 투입하세요. 불조절이 요리의 생명입니다.</p>
       </div>
       <div class="physics-card">
         <h3>03. 뒤집기와 레스팅</h3>
