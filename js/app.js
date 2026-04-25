@@ -22,6 +22,7 @@ let lastTimestamp = null; // rAF timestamp of previous frame
 let rafId = null;
 let flipAnimProgress = 1; // 1 = animation done
 let maxCoreTemp = 22;
+let isMeatAdded = false;
 
 let thickness = 0.04;  // m (default 4 cm)
 
@@ -46,6 +47,8 @@ function initSim() {
   isResting = false;
   flipAnimProgress = 1;
   maxCoreTemp = initT;
+  isMeatAdded = false;
+  document.getElementById('add-meat-btn').style.display = 'block';
 
   renderFrame();
 }
@@ -76,33 +79,32 @@ function loop(timestamp) {
       if (isResting) {
         nodes = stepRest(nodes, thickness, alpha);
       } else {
-        panTemp = updatePanTemp(panTemp, nodes, thickness, panProps, burnerPower);
-        nodes = stepFDM(nodes, alpha, thickness, panTemp);
-        crustFront = updateMaillard(crustFront, nodes[0]);
-      }
+        panTemp = updatePanTemp(panTemp, nodes, thickness, panProps, burnerPower, isMeatAdded);
+        if (isMeatAdded) {
+          nodes = stepFDM(nodes, alpha, thickness, panTemp);
+          crustFront = updateMaillard(crustFront, nodes[0]);
 
-      // 수분 증발 모델: 표면이 100도가 넘으면 잠열을 소비하며 수분 손실
-      // 표면이 건조해질수록(waterLoss 증가) 증발 속도가 줄어들어 마침내 100도를 돌파할 수 있게 함.
-      const WATER_LATENT_HEAT = 2.26e6; // J/kg
-      const BASE_EVAP_RATE = 0.05;      // kg/s/m² 
-      const DRY_THRESHOLD = 5.0;        // 수분 손실 5% 도달 시 표면 건조로 간주
-      const beefMass = STEAK_AREA * thickness * BEEF_RHO;
-      const mass_surface = beefMass / N_NODES;
+          // 수분 증발 모델: 표면이 100도가 넘으면 잠열을 소비하며 수분 손실
+          const WATER_LATENT_HEAT = 2.26e6; // J/kg
+          const BASE_EVAP_RATE = 0.05;      // kg/s/m²
+          const DRY_THRESHOLD = 5.0;
+          const beefMass = STEAK_AREA * thickness * BEEF_RHO;
+          const mass_surface = beefMass / N_NODES;
 
-      if (!isResting && nodes[0] > 100) {
-        // 표면이 마를수록 증발량 감소
-        const currentEvapRate = BASE_EVAP_RATE * Math.max(0, 1 - (waterLoss / DRY_THRESHOLD));
-        
-        if (currentEvapRate > 0) {
-          const evMass = currentEvapRate * STEAK_AREA * DT;
-          const heatCon = evMass * WATER_LATENT_HEAT;
-          nodes[0] -= heatCon / (mass_surface * BEEF_CP);
-          if (nodes[0] < 100) nodes[0] = 100;
-          waterLoss += (evMass / beefMass) * 100;
+          if (nodes[0] > 100) {
+            const currentEvapRate = BASE_EVAP_RATE * Math.max(0, 1 - (waterLoss / DRY_THRESHOLD));
+            if (currentEvapRate > 0) {
+              const evMass = currentEvapRate * STEAK_AREA * DT;
+              const heatCon = evMass * WATER_LATENT_HEAT;
+              nodes[0] -= heatCon / (mass_surface * BEEF_CP);
+              if (nodes[0] < 100) nodes[0] = 100;
+              waterLoss += (evMass / beefMass) * 100;
+            }
+          }
+
+          denaturation = updateDenaturation(denaturation, nodes);
         }
       }
-
-      denaturation = updateDenaturation(denaturation, nodes);
       simSecs += DT;
       tempHistory.push({ t: simSecs, pan: panTemp, core: getCoreTemp(nodes) });
       accumulator -= DT;
@@ -124,7 +126,7 @@ function renderFrame() {
   const doneness = getDoneness(maxCoreTemp);
 
   drawHeatmap(nodes, denaturation);
-  drawPan(nodes, denaturation, crustFront, crustBack, flipAnimProgress, isResting, maxCoreTemp);
+  drawPan(nodes, denaturation, crustFront, crustBack, flipAnimProgress, isResting, maxCoreTemp, isMeatAdded);
   drawGraph(tempHistory);
   updateStats({ coreTemp, crustFront, crustBack, doneness, panTemp, flipCount, simSecs, waterLoss });
 }
@@ -200,6 +202,11 @@ document.getElementById('api-key-save').addEventListener('click', () => {
 });
 
 // ── Main button listeners ─────────────────────────────────
+document.getElementById('add-meat-btn').addEventListener('click', () => {
+  isMeatAdded = true;
+  document.getElementById('add-meat-btn').style.display = 'none';
+  renderFrame();
+});
 document.getElementById('start-btn').addEventListener('click', startStop);
 document.getElementById('flip-btn').addEventListener('click', doFlip);
 document.getElementById('rest-btn').addEventListener('click', doRest);

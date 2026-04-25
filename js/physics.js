@@ -30,10 +30,10 @@ function stepFDM(nodes, alpha, thickness, panTemp) {
 
 // Dynamic pan temperature: energy balance each timestep
 // Pan loses heat to steak, gains heat from burner
-function updatePanTemp(panTemp, nodes, thickness, panProps, burnerPower) {
+function updatePanTemp(panTemp, nodes, thickness, panProps, burnerPower, isMeatAdded = true) {
   const dx = thickness / N_NODES;
-  // Heat flux from pan into steak bottom node (W/m²)
-  const heatFlux = BEEF_K * (panTemp - nodes[0]) / dx;
+  // Heat flux from pan into steak bottom node (W/m²) — only when meat is in the pan
+  const heatFlux = isMeatAdded ? BEEF_K * (panTemp - nodes[0]) / dx : 0;
   // Energy extracted from pan by steak (J) = flux × area × dt
   const dE = heatFlux * STEAK_AREA * DT;
   

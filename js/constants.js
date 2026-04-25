@@ -38,4 +38,4 @@ const H_CONV = 15;    // W/m²·K
 const T_AIR  = 22;    // °C
 
 // Initial pan temperature when simulation starts
-const PAN_INITIAL_TEMP = 220; // °C
+const PAN_INITIAL_TEMP = 22; // °C

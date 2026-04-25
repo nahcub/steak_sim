@@ -147,35 +147,34 @@ function drawPan(nodes, denaturation, crustFront, crustBack, flipProgress = 1, i
     ctx.drawImage(bgImg, 0, panBounceY, W, H);
   }
 
-  // Steak rect in canvas coords
-  const sx = W * _S.l;
-  const sy = H * _S.t;
-  const sw = W * (_S.r - _S.l);
-  const sh = H * (_S.b - _S.t);
+  if (isMeatAdded) {
+    // Steak rect in canvas coords
+    const sx = W * _S.l;
+    const sy = H * _S.t;
+    const sw = W * (_S.r - _S.l);
+    const sh = H * (_S.b - _S.t);
 
-  // Steak animation offset & rotation
-  let steakYOffset = panBounceY; // Follows pan when resting, separates when jumping
-  let steakRotation = 0;
+    // Steak animation offset & rotation
+    let steakYOffset = panBounceY;
+    let steakRotation = 0;
 
-  if (flipProgress < 1) {
-    // Parabola: up and down
-    steakYOffset += -350 * Math.sin(flipProgress * Math.PI);
-    // Rotation: starts at 180deg and ends at 0
-    steakRotation = (1 - flipProgress) * Math.PI;
+    if (flipProgress < 1) {
+      steakYOffset += -350 * Math.sin(flipProgress * Math.PI);
+      steakRotation = (1 - flipProgress) * Math.PI;
+    }
+
+    ctx.save();
+    const cx = sx + sw / 2;
+    const cy = sy + sh / 2;
+
+    ctx.translate(cx, cy + steakYOffset);
+    ctx.rotate(steakRotation);
+    ctx.translate(-cx, -cy);
+
+    _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack, maxCoreTemp);
+
+    ctx.restore();
   }
-
-  ctx.save();
-  // Translate to center of steak
-  const cx = sx + sw / 2;
-  const cy = sy + sh / 2;
-
-  ctx.translate(cx, cy + steakYOffset);
-  ctx.rotate(steakRotation);
-  ctx.translate(-cx, -cy);
-
-  _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack, maxCoreTemp);
-
-  ctx.restore();
 
   ctx.restore(); // Restore global scale
 }
