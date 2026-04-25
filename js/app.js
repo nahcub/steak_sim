@@ -14,8 +14,9 @@ let isRunning  = false;
 let isResting  = false;
 let isRevealed = false;
 let flipCount  = 0;
-let simSecs    = 0;     // total simulated seconds
-let realStart  = null;  // Date.now() when simulation started
+let simSecs    = 0;      // total simulated seconds
+let accumulator = 0;     // leftover real time not yet consumed by FDM steps (seconds)
+let lastTimestamp = null; // rAF timestamp of previous frame
 let rafId      = null;
 
 let thickness  = 0.04;  // m (default 4 cm)
@@ -27,15 +28,17 @@ function initSim() {
   alpha        = PROPERTIES[document.getElementById('cut-select').value].alpha;
   panProps     = PAN_PROPERTIES[document.getElementById('pan-select').value];
 
-  nodes        = Array(N_NODES).fill(initT);
-  panTemp      = PAN_INITIAL_TEMP;
-  crustFront   = 0;
-  crustBack    = 0;
-  denaturation = initDenaturation();
-  flipCount    = 0;
-  simSecs      = 0;
-  isResting    = false;
-  isRevealed   = false;
+  nodes         = Array(N_NODES).fill(initT);
+  panTemp       = PAN_INITIAL_TEMP;
+  crustFront    = 0;
+  crustBack     = 0;
+  denaturation  = initDenaturation();
+  flipCount     = 0;
+  simSecs       = 0;
+  accumulator   = 0;
+  lastTimestamp = null;
+  isResting     = false;
+  isRevealed    = false;
 
   document.getElementById('cut-display').textContent =
     PROPERTIES[document.getElementById('cut-select').value].label;
@@ -43,28 +46,35 @@ function initSim() {
   renderFrame();
 }
 
-// ── Game loop ─────────────────────────────────────────────
+// ── Game loop (real-time locked) ──────────────────────────
+// Uses fixed-timestep accumulator: sim advances exactly as much
+// real time has passed, keeping simSecs === elapsed wall-clock seconds.
 function loop(timestamp) {
   if (!isRunning) return;
 
-  const dx = thickness / N_NODES;
+  if (lastTimestamp !== null) {
+    const frameMs = timestamp - lastTimestamp;
+    // Cap at 200 ms to avoid spiral-of-death after tab was hidden
+    accumulator += Math.min(frameMs, 200) / 1000;
 
-  for (let s = 0; s < SIM_SPEED; s++) {
-    if (isResting) {
-      nodes = stepRest(nodes, thickness, alpha);
-    } else {
-      panTemp = updatePanTemp(panTemp, nodes, thickness, panProps, burnerPower);
-      nodes   = stepFDM(nodes, alpha, thickness, panTemp);
+    while (accumulator >= DT) {
+      if (isResting) {
+        nodes = stepRest(nodes, thickness, alpha);
+      } else {
+        panTemp = updatePanTemp(panTemp, nodes, thickness, panProps, burnerPower);
+        nodes   = stepFDM(nodes, alpha, thickness, panTemp);
+      }
+      crustFront   = updateMaillard(crustFront, nodes[0]);
+      crustBack    = updateMaillard(crustBack,  nodes[N_NODES - 1]);
+      denaturation = updateDenaturation(denaturation, nodes);
+      simSecs     += DT;
+      accumulator -= DT;
     }
-
-    crustFront = updateMaillard(crustFront, nodes[0]);
-    crustBack  = updateMaillard(crustBack,  nodes[N_NODES - 1]);
-    denaturation = updateDenaturation(denaturation, nodes);
-    simSecs += DT;
   }
 
+  lastTimestamp = timestamp;
   renderFrame();
-  updateTimer((Date.now() - realStart) / 1000);
+  updateTimer(simSecs);
   rafId = requestAnimationFrame(loop);
 }
 
@@ -81,8 +91,8 @@ function renderFrame() {
 function startStop() {
   if (!isRunning) {
     if (simSecs === 0) initSim();
-    isRunning = true;
-    realStart = realStart || Date.now();
+    isRunning     = true;
+    lastTimestamp = null; // reset so first frame doesn't count gap while paused
     document.getElementById('start-btn').textContent = '⏸ PAUSE';
     setActionBtns(true);
     rafId = requestAnimationFrame(loop);
@@ -209,7 +219,6 @@ document.getElementById('reveal-btn').addEventListener('click', doReveal);
       setActionBtns(false);
     }
     simSecs = 0;
-    realStart = null;
     initSim();
     showToast('설정 변경 — 시뮬레이션 초기화');
   });

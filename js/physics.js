@@ -30,8 +30,8 @@ function stepFDM(nodes, alpha, thickness, panTemp) {
 // Pan loses heat to steak, gains heat from burner
 function updatePanTemp(panTemp, nodes, thickness, panProps, burnerPower) {
   const dx = thickness / N_NODES;
-  // Heat flux from pan surface into steak bottom node (W/m²)
-  const heatFlux = BEEF_K * (nodes[0] - panTemp) / dx;
+  // Heat flux from pan into steak bottom node (W/m²) — positive = pan loses heat to steak
+  const heatFlux = BEEF_K * (panTemp - nodes[0]) / dx;
   // Energy extracted from pan (J) = flux × area × dt
   const dE = heatFlux * STEAK_AREA * DT;
   // Burner adds energy to pan

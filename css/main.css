@@ -1,15 +1,15 @@
-/* ── DESIGN TOKENS (xAI-inspired) ───────────────────── */
+/* ── DESIGN TOKENS (light) ───────────────────────────── */
 :root {
-  --bg:           #1f2228;
-  --surface:      rgba(255,255,255,0.03);
-  --surface-hover:rgba(255,255,255,0.08);
-  --border:       rgba(255,255,255,0.10);
-  --border-strong:rgba(255,255,255,0.20);
+  --bg:           #ffffff;
+  --surface:      rgba(0,0,0,0.02);
+  --surface-hover:rgba(0,0,0,0.05);
+  --border:       rgba(0,0,0,0.10);
+  --border-strong:rgba(0,0,0,0.20);
 
-  --text-primary:   #ffffff;
-  --text-secondary: rgba(255,255,255,0.70);
-  --text-muted:     rgba(255,255,255,0.40);
-  --text-disabled:  rgba(255,255,255,0.25);
+  --text-primary:   #0f1117;
+  --text-secondary: rgba(0,0,0,0.65);
+  --text-muted:     rgba(0,0,0,0.38);
+  --text-disabled:  rgba(0,0,0,0.22);
 
   --focus-ring: rgb(59,130,246);
 
@@ -18,7 +18,7 @@
 
   --radius: 0px;
   --header-h: 48px;
-  --footer-h: 64px;
+  --footer-h: 108px;
 }
 
 /* ── RESET ────────────────────────────────────────── */
@@ -173,7 +173,7 @@ html, body {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: #ffffff;
   min-height: 240px;
 }
 
@@ -183,7 +183,7 @@ html, body {
   display: block;
 }
 
-/* Controls grid under pan */
+/* Controls grid above pan */
 .controls-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -246,21 +246,63 @@ html, body {
   margin-bottom: 10px;
 }
 
-/* Heatmap */
+/* Heatmap (vertical) */
+.heatmap-card { flex: 1; min-height: 0; }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.card-header .card-title { margin-bottom: 0; }
+
+.heatmap-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.heatmap-axis {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.heatmap-axis-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
 #heatmap-canvas {
   width: 100%;
-  height: 48px;
+  height: 180px;
   display: block;
   border: 1px solid var(--border);
 }
 
-.heatmap-labels {
+/* Colorbar */
+.heatmap-colorbar {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  margin-top: 6px;
-  font-size: 11px;
+  gap: 4px;
+}
+
+#colorbar-canvas {
+  display: block;
+  border: 1px solid var(--border);
+}
+
+.colorbar-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .doneness-badge {
@@ -313,15 +355,8 @@ html, body {
 }
 
 /* Fire buttons */
-.fire-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
 .fire-btn {
-  flex: 1;
-  padding: 8px 4px;
+  padding: 6px 14px;
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -340,13 +375,6 @@ html, body {
   background: var(--surface);
 }
 
-.pan-temp-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--text-muted);
-}
 
 /* ── FOOTER ───────────────────────────────────────── */
 .app-footer {
@@ -354,18 +382,35 @@ html, body {
   bottom: 0; left: 0; right: 0;
   height: var(--footer-h);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
   gap: 8px;
-  padding: 0 24px;
+  padding: 10px 24px;
   border-top: 1px solid var(--border);
   background: var(--bg);
   z-index: 100;
 }
 
+.footer-fire {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fire-sep {
+  flex: 1;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ── BUTTONS ──────────────────────────────────────── */
 .btn-primary {
-  background: var(--text-primary);
-  color: var(--bg);
+  background: #0f1117;
+  color: #ffffff;
   border: none;
   padding: 10px 24px;
   font-family: var(--font-mono);
@@ -377,8 +422,8 @@ html, body {
   border-radius: var(--radius);
   transition: background 0.15s;
 }
-.btn-primary:hover { background: rgba(255,255,255,0.88); }
-.btn-primary:disabled { background: var(--text-disabled); cursor: not-allowed; color: var(--bg); }
+.btn-primary:hover { background: #2a2d36; }
+.btn-primary:disabled { background: var(--text-disabled); cursor: not-allowed; color: #ffffff; }
 
 .btn-ghost {
   background: transparent;
@@ -417,8 +462,8 @@ html, body {
   bottom: calc(var(--footer-h) + 12px);
   left: 50%;
   transform: translateX(-50%);
-  background: var(--text-primary);
-  color: var(--bg);
+  background: #0f1117;
+  color: #ffffff;
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.5px;

@@ -7,7 +7,7 @@ const STEAK_AREA = 0.02;  // m²
 // Simulation parameters
 const N_NODES = 20;
 const DT = 0.5;           // s — well within FDM stability limit (dx²/2α ≈ 14.8s for 4cm steak)
-const SIM_SPEED = 10;     // sim steps per animation frame (~×10 realtime)
+const SIM_SPEED = 1;      // sim steps per animation frame — 0.5 sim-sec/frame @ 60fps ≈ 27 real-sec per side
 
 // Cut thermal diffusivity (α = k / ρCp, adjusted for fat content)
 const PROPERTIES = {

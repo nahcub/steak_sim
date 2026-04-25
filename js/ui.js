@@ -1,9 +1,38 @@
 // UI rendering — canvas drawing + DOM stat updates
 
+// ── Pan image ────────────────────────────────────────────
+const _panImg = new Image();
+_panImg.onload = () => { if (typeof renderFrame === 'function') renderFrame(); };
+_panImg.src = 'design/flyingpan.png';
+
+// Steak bounding box as fraction of flyingpan.png dimensions
+const _S = { l: 0.245, t: 0.36, r: 0.622, b: 0.598 };
+
 // ── Color mapping ────────────────────────────────────────
 function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 
-// Maps node temperature + denaturation to RGB array
+// Scientific heatmap colormap (blue → cyan → green → yellow → red)
+// Used for the cross-section heatmap canvas only
+function tempToHeatmapRGB(t) {
+  const n = Math.max(0, Math.min(1, (t - 4) / (240 - 4)));
+  let r, g, b;
+  if (n < 0.25) {
+    const f = n / 0.25;
+    r = 0; g = Math.round(lerp(0, 255, f)); b = 255;
+  } else if (n < 0.5) {
+    const f = (n - 0.25) / 0.25;
+    r = 0; g = 255; b = Math.round(lerp(255, 0, f));
+  } else if (n < 0.75) {
+    const f = (n - 0.5) / 0.25;
+    r = Math.round(lerp(0, 255, f)); g = 255; b = 0;
+  } else {
+    const f = (n - 0.75) / 0.25;
+    r = 255; g = Math.round(lerp(255, 0, f)); b = 0;
+  }
+  return [r, g, b];
+}
+
+// Maps node temperature + denaturation to RGB array (used for pan view)
 function tempToRGB(t, denat) {
   // Protein denaturation overrides raw color from ~52°C
   // Below 49°C: deep red (raw)
@@ -41,24 +70,41 @@ function crustRGB(crustLevel) {
   return [lerp(130, 55, f), lerp(60, 25, f), lerp(20, 8, f)];
 }
 
-// ── Heatmap canvas (cross-section) ───────────────────────
+// ── Heatmap canvas (vertical cross-section) ──────────────
+// Top = air side (nodes[N-1]), Bottom = pan side (nodes[0])
 function drawHeatmap(nodes, denaturation) {
   const canvas = document.getElementById('heatmap-canvas');
   const ctx = canvas.getContext('2d');
   const W = canvas.offsetWidth || 288;
-  const H = 48;
+  const H = canvas.offsetHeight || 180;
   canvas.width = W;
   canvas.height = H;
 
-  const stripeW = W / N_NODES;
-  nodes.forEach((t, i) => {
-    const [r, g, b] = tempToRGB(t, denaturation[i]);
+  const stripeH = H / N_NODES;
+  for (let i = 0; i < N_NODES; i++) {
+    // i=0 → top of canvas → nodes[N-1] (air side)
+    const nodeIdx = N_NODES - 1 - i;
+    const [r, g, b] = tempToHeatmapRGB(nodes[nodeIdx]);
     ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.fillRect(i * stripeW, 0, stripeW + 1, H);
-  });
+    ctx.fillRect(0, i * stripeH, W, stripeH + 1);
+  }
+
+  // Draw colorbar
+  const cb = document.getElementById('colorbar-canvas');
+  if (cb) {
+    const cbCtx = cb.getContext('2d');
+    const cbH = cb.height;
+    for (let y = 0; y < cbH; y++) {
+      // y=0 → hot (240°C), y=cbH → cold (4°C)
+      const t = lerp(240, 4, y / cbH);
+      const [r, g, b] = tempToHeatmapRGB(t);
+      cbCtx.fillStyle = `rgb(${r},${g},${b})`;
+      cbCtx.fillRect(0, y, cb.width, 1);
+    }
+  }
 }
 
-// ── Pan canvas (top-down view) ────────────────────────────
+// ── Pan canvas ────────────────────────────────────────────
 function drawPan(nodes, denaturation, crustFront, crustBack, revealed) {
   const canvas = document.getElementById('pan-canvas');
   const ctx = canvas.getContext('2d');
@@ -67,74 +113,63 @@ function drawPan(nodes, denaturation, crustFront, crustBack, revealed) {
   canvas.width = W;
   canvas.height = H;
 
-  // Pan background (cast iron)
-  ctx.fillStyle = '#1a1a1a';
+  // White background (matches pan image)
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  // Grill lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-  ctx.lineWidth = 6;
-  const gap = 28;
-  for (let y = -W; y < W + H; y += gap) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(W, y + W);
-    ctx.stroke();
+  // Draw pan image (stretched to canvas — steak fractions stay aligned)
+  if (_panImg.complete && _panImg.naturalWidth > 0) {
+    ctx.drawImage(_panImg, 0, 0, W, H);
   }
+
+  // Steak rect in canvas coords
+  const sx = W * _S.l;
+  const sy = H * _S.t;
+  const sw = W * (_S.r - _S.l);
+  const sh = H * (_S.b - _S.t);
 
   if (revealed) {
-    _drawSteakRevealed(ctx, W, H, nodes, denaturation, crustFront, crustBack);
+    _drawSteakRevealed(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack);
   } else {
-    _drawSteakTopDown(ctx, W, H, nodes, denaturation, crustFront);
+    _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack);
   }
 }
 
-function _drawSteakTopDown(ctx, W, H, nodes, denaturation, crustFront) {
-  const cx = W / 2, cy = H / 2;
-  const rx = W * 0.38, ry = H * 0.30;
-
-  // Outer crust ring
-  const [cr, cg, cb] = crustRGB(crustFront);
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
-  ctx.fill();
-
-  // Inner meat (core temperature color)
+function _drawSteakSideView(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack) {
   const coreIdx = Math.floor(N_NODES / 2);
   const [mr, mg, mb] = tempToRGB(nodes[coreIdx], denaturation[coreIdx]);
-  const crustThickness = Math.min(0.45, crustFront * 0.5);
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx * (1 - crustThickness), ry * (1 - crustThickness), 0, 0, Math.PI * 2);
-  ctx.fillStyle = `rgb(${mr},${mg},${mb})`;
-  ctx.fill();
+  const [cfr, cfg, cfb] = crustRGB(crustFront);
+  const [cbr, cbg, cbb] = crustRGB(crustBack);
 
-  // Subtle highlight
-  const grad = ctx.createRadialGradient(cx - rx * 0.2, cy - ry * 0.2, 0, cx, cy, rx);
-  grad.addColorStop(0, 'rgba(255,255,255,0.06)');
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx * (1 - crustThickness), ry * (1 - crustThickness), 0, 0, Math.PI * 2);
+  // Vertical gradient: bottom = pan-face, top = air-face
+  const grad = ctx.createLinearGradient(sx, sy + sh, sx, sy);
+  const panR = Math.round(lerp(mr, cfr, crustFront));
+  const panG = Math.round(lerp(mg, cfg, crustFront));
+  const panB = Math.round(lerp(mb, cfb, crustFront));
+  const airR = Math.round(lerp(mr, cbr, crustBack));
+  const airG = Math.round(lerp(mg, cbg, crustBack));
+  const airB = Math.round(lerp(mb, cbb, crustBack));
+  grad.addColorStop(0,   `rgb(${panR},${panG},${panB})`);
+  grad.addColorStop(0.3, `rgb(${mr},${mg},${mb})`);
+  grad.addColorStop(0.7, `rgb(${mr},${mg},${mb})`);
+  grad.addColorStop(1,   `rgb(${airR},${airG},${airB})`);
+
   ctx.fillStyle = grad;
-  ctx.fill();
+  ctx.fillRect(sx, sy, sw, sh);
+
+  // Subtle top-face highlight
+  const hi = ctx.createLinearGradient(sx, sy, sx, sy + sh * 0.2);
+  hi.addColorStop(0, 'rgba(255,255,255,0.10)');
+  hi.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hi;
+  ctx.fillRect(sx, sy, sw, sh * 0.2);
 }
 
-function _drawSteakRevealed(ctx, W, H, nodes, denaturation, crustFront, crustBack) {
-  // Show cross-section as vertical bands across the steak shape
-  const cx = W / 2, cy = H / 2;
-  const rx = W * 0.38, ry = H * 0.30;
-
-  // Clip to steak ellipse
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.clip();
-
-  const bandW = (rx * 2) / N_NODES;
-  const startX = cx - rx;
+function _drawSteakRevealed(ctx, sx, sy, sw, sh, nodes, denaturation, crustFront, crustBack) {
+  // Cross-section: vertical bands from pan-side (left) to air-side (right)
+  const bandW = sw / N_NODES;
   nodes.forEach((t, i) => {
     const [r, g, b] = tempToRGB(t, denaturation[i]);
-    // Apply crust to edge nodes
     let fr = r, fg = g, fb = b;
     if (i === 0) {
       const [cr, cg, cb] = crustRGB(crustFront);
@@ -148,24 +183,15 @@ function _drawSteakRevealed(ctx, W, H, nodes, denaturation, crustFront, crustBac
       fb = Math.round(lerp(b, cb, crustBack));
     }
     ctx.fillStyle = `rgb(${fr},${fg},${fb})`;
-    ctx.fillRect(startX + i * bandW, cy - ry, bandW + 1, ry * 2);
+    ctx.fillRect(sx + i * bandW, sy, bandW + 1, sh);
   });
 
-  ctx.restore();
-
-  // Outline
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // Doneness labels
+  // Doneness label
   const donenessInfo = getDoneness(nodes[Math.floor(N_NODES / 2)]);
-  ctx.font = '600 13px Inter, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = `600 ${Math.max(11, Math.round(sh * 0.28))}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
   ctx.textAlign = 'center';
-  ctx.fillText(donenessInfo.label, cx, cy + 5);
+  ctx.fillText(donenessInfo.label, sx + sw / 2, sy + sh / 2 + 5);
 }
 
 // ── DOM stats ─────────────────────────────────────────────
